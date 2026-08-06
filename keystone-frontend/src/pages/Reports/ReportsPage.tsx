@@ -50,18 +50,15 @@ function ReportsPage() {
     );
   }
 
-  const cards = [
-    ["Customers", report?.totalCustomers],
-    ["Sites", report?.totalSites],
-    ["Technicians", report?.totalTechnicians],
-    ["Work Orders", report?.totalWorkOrders],
-    ["Open", report?.openWorkOrders],
-    ["Assigned", report?.assignedWorkOrders],
-    ["In Progress", report?.inProgressWorkOrders],
-    ["On Hold", report?.onHoldWorkOrders],
-    ["Completed", report?.completedWorkOrders],
-    ["Closed", report?.closedWorkOrders],
-  ];
+ const cards = [
+  ["Customers", report?.customerCount],
+  ["Sites", report?.siteCount],
+  ["Technicians", report?.technicianCount],
+  ["Work Orders", report?.workOrderCount],
+  ["Parts", report?.partCount],
+  ["Part Usage", report?.partUsageCount],
+  ["Time Logs", report?.timeLogCount],
+];
 
   return (
     <MainLayout>
