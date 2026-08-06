@@ -1,7 +1,7 @@
 import api from "./axios";
 import type { Technician } from "../types/technician";
 
-const API_URL = "http://localhost:8080/api/technicians";
+const API_URL = "/technicians";
 
 export const getAllTechnicians = async (): Promise<Technician[]> => {
   const response = await api.get(API_URL);

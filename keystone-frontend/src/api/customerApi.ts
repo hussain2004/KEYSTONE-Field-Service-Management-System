@@ -8,7 +8,7 @@ export interface CustomerPage {
   size: number;
 }
 
-const API_URL = "http://localhost:8080/api/customers";
+const API_URL = "/customers";
 
 export const getAllCustomers = async (): Promise<Customer[]> => {
   const response = await api.get(API_URL);

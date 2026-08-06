@@ -2,7 +2,7 @@ import api from "./axios";
 import type { RecentWorkOrder } from "../types/recentWorkOrder";
 import type { Activity } from "../types/activity";
 
-const API_URL = "http://localhost:8080/api/dashboard";
+const API_URL = "/dashboard";
 
 export interface DashboardResponse {
   customerCount: number;

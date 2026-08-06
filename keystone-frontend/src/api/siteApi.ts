@@ -1,7 +1,7 @@
 import api from "./axios";
 import type { Site } from "../types/site";
 
-const API_URL = "http://localhost:8080/api/sites";
+const API_URL = "/sites";
 
 export const getAllSites = async (): Promise<Site[]> => {
   const response = await api.get(API_URL);

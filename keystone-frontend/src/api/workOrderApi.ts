@@ -1,7 +1,7 @@
 import api from "./axios";
 import type { WorkOrder } from "../types/workOrder";
 
-const API_URL = "http://localhost:8080/api/work-orders";
+const API_URL = "/work-orders";
 
 export const getAllWorkOrders = async (): Promise<WorkOrder[]> => {
   const response = await api.get(API_URL);
@@ -117,8 +117,8 @@ export const getStatusHistory = async (
   workOrderId: number
 ) => {
   const response = await api.get(
-   `http://localhost:8080/api/workorders/${workOrderId}/history`
-  );
+    `/work-orders/${workOrderId}/history`
+);
 
   return response.data;
 };
