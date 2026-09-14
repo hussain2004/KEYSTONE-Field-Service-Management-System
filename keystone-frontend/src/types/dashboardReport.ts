@@ -1,19 +1,12 @@
 export interface DashboardReport {
-
-  customerCount: number;
-
-  siteCount: number;
-
-  userCount: number;
-
-  technicianCount: number;
-
-  workOrderCount: number;
-
-  partCount: number;
-
-  partUsageCount: number;
-
-  timeLogCount: number;
-
+  totalCustomers: number;
+  totalSites: number;
+  totalTechnicians: number;
+  totalWorkOrders: number;
+  openWorkOrders: number;
+  assignedWorkOrders: number;
+  inProgressWorkOrders: number;
+  onHoldWorkOrders: number;
+  completedWorkOrders: number;
+  closedWorkOrders: number;
 }

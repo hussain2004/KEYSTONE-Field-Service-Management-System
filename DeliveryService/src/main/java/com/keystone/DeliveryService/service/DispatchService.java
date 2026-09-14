@@ -22,9 +22,14 @@ public class DispatchService {
 
     public List<DispatchResponse> getDispatchQueue() {
 
-        return workOrderRepository
-                .findByStatus(WorkOrderStatus.NEW)
+        return workOrderRepository.findAll()
                 .stream()
+                .filter(workOrder ->
+                        workOrder.getStatus() == WorkOrderStatus.NEW
+                                || workOrder.getStatus() == WorkOrderStatus.ASSIGNED
+                                || workOrder.getStatus() == WorkOrderStatus.IN_PROGRESS
+                                || workOrder.getStatus() == WorkOrderStatus.ON_HOLD
+                )
                 .sorted(
                         Comparator
                                 .comparing(
@@ -68,13 +73,12 @@ public class DispatchService {
                 .findByStatus(status)
                 .stream()
                 .sorted(
-                        Comparator
-                                .comparing(
-                                        WorkOrder::getScheduledDate,
-                                        Comparator.nullsLast(
-                                                Comparator.naturalOrder()
-                                        )
+                        Comparator.comparing(
+                                WorkOrder::getScheduledDate,
+                                Comparator.nullsLast(
+                                        Comparator.naturalOrder()
                                 )
+                        )
                 )
                 .map(this::mapToResponse)
                 .toList();

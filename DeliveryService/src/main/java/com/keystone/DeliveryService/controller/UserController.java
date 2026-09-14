@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
 public class UserController {
 
     private final UserService userService;
@@ -29,7 +29,6 @@ public class UserController {
 
     @GetMapping
     public List<UserResponse> getAllUsers() {
-
         return userService.getAllUsers();
     }
 
@@ -50,9 +49,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(
-            @PathVariable Long id) {
-
+    public void deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
     }
 }
