@@ -30,19 +30,20 @@ import {
 const drawerWidth = 240;
 
 function Sidebar() {
-
   const location = useLocation();
   const navigate = useNavigate();
+
   const role = localStorage.getItem("role");
 
-  const handleLogout = () => {
+  const isManager = role === "MANAGER" || role === "ADMIN";
+  const isTechnician = role === "TECHNICIAN" || role === "ENGINEER";
 
+  const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
     localStorage.removeItem("role");
 
     navigate("/login");
-
   };
 
   return (
@@ -60,7 +61,6 @@ function Sidebar() {
       <Toolbar />
 
       <List>
-
         <ListItemButton
           component={Link}
           to="/"
@@ -71,185 +71,170 @@ function Sidebar() {
           </ListItemIcon>
           <ListItemText primary="Dashboard" />
         </ListItemButton>
-        {role === "ADMIN" && (
-  <ListItemButton
-    component={Link}
-    to="/users"
-    selected={location.pathname === "/users"}
-  >
-    <ListItemIcon>
-      <PeopleAltIcon />
-    </ListItemIcon>
 
-    <ListItemText primary="Users" />
-  </ListItemButton>
-)}
+        {isManager && (
+          <ListItemButton
+            component={Link}
+            to="/users"
+            selected={location.pathname === "/users"}
+          >
+            <ListItemIcon>
+              <PeopleAltIcon />
+            </ListItemIcon>
+            <ListItemText primary="Users" />
+          </ListItemButton>
+        )}
 
-        {role === "ADMIN"  && (
-  <ListItemButton
-    component={Link}
-    to="/customers"
-    selected={location.pathname === "/customers"}
-  >
-    <ListItemIcon>
-      <GroupsIcon />
-    </ListItemIcon>
+        {isManager && (
+          <ListItemButton
+            component={Link}
+            to="/customers"
+            selected={location.pathname === "/customers"}
+          >
+            <ListItemIcon>
+              <GroupsIcon />
+            </ListItemIcon>
+            <ListItemText primary="Customers" />
+          </ListItemButton>
+        )}
 
-    <ListItemText primary="Customers" />
-  </ListItemButton>
-)}
+        {isManager && (
+          <ListItemButton
+            component={Link}
+            to="/sites"
+            selected={location.pathname === "/sites"}
+          >
+            <ListItemIcon>
+              <LocationOnIcon />
+            </ListItemIcon>
+            <ListItemText primary="Sites" />
+          </ListItemButton>
+        )}
 
-        {role === "ADMIN"  && (
-  <ListItemButton
-    component={Link}
-    to="/sites"
-    selected={location.pathname === "/sites"}
-  >
-    <ListItemIcon>
-      <LocationOnIcon />
-    </ListItemIcon>
+        {isManager && (
+          <ListItemButton
+            component={Link}
+            to="/technicians"
+            selected={location.pathname === "/technicians"}
+          >
+            <ListItemIcon>
+              <EngineeringIcon />
+            </ListItemIcon>
+            <ListItemText primary="Technicians" />
+          </ListItemButton>
+        )}
 
-    <ListItemText primary="Sites" />
-  </ListItemButton>
-)}
+        {(isManager || isTechnician) && (
+          <ListItemButton
+            component={Link}
+            to="/work-orders"
+            selected={location.pathname === "/work-orders"}
+          >
+            <ListItemIcon>
+              <AssignmentIcon />
+            </ListItemIcon>
+            <ListItemText primary="Work Orders" />
+          </ListItemButton>
+        )}
 
-        { role === "ADMIN" && (
-  <ListItemButton
-    component={Link}
-    to="/technicians"
-    selected={location.pathname === "/technicians"}
-  >
-    <ListItemIcon>
-      <EngineeringIcon />
-    </ListItemIcon>
+        {isManager && (
+          <ListItemButton
+            component={Link}
+            to="/kanban"
+            selected={location.pathname === "/kanban"}
+          >
+            <ListItemIcon>
+              <ViewKanbanRoundedIcon />
+            </ListItemIcon>
+            <ListItemText primary="Kanban Board" />
+          </ListItemButton>
+        )}
 
-    <ListItemText primary="Technicians" />
-  </ListItemButton>
-)}
+        {isTechnician && (
+          <ListItemButton
+            component={Link}
+            to="/technician-dashboard"
+            selected={location.pathname === "/technician-dashboard"}
+          >
+            <ListItemIcon>
+              <EngineeringIcon />
+            </ListItemIcon>
+            <ListItemText primary="Technician Dashboard" />
+          </ListItemButton>
+        )}
 
-       {(role === "ADMIN"  ||
-  role === "ENGINEER") && (
-  <ListItemButton
-    component={Link}
-    to="/work-orders"
-    selected={location.pathname === "/work-orders"}
-  >
-    <ListItemIcon>
-      <AssignmentIcon />
-    </ListItemIcon>
+        {(isManager || isTechnician) && (
+          <ListItemButton
+            component={Link}
+            to="/parts"
+            selected={location.pathname === "/parts"}
+          >
+            <ListItemIcon>
+              <Inventory2Icon />
+            </ListItemIcon>
+            <ListItemText primary="Parts" />
+          </ListItemButton>
+        )}
 
-    <ListItemText primary="Work Orders" />
-  </ListItemButton>
-)}
-        {role === "ADMIN"  && (
-  <ListItemButton
-    component={Link}
-    to="/kanban"
-    selected={location.pathname === "/kanban"}
-  >
-    <ListItemIcon>
-      <ViewKanbanRoundedIcon />
-    </ListItemIcon>
+        {(isManager || isTechnician) && (
+          <ListItemButton
+            component={Link}
+            to="/part-usage"
+            selected={location.pathname === "/part-usage"}
+          >
+            <ListItemIcon>
+              <BuildCircleIcon />
+            </ListItemIcon>
+            <ListItemText primary="Part Usage" />
+          </ListItemButton>
+        )}
 
-    <ListItemText primary="Kanban Board" />
-  </ListItemButton>
-)}
-{ role === "ENGINEER" && (
-  <ListItemButton
-    component={Link}
-    to="/technician-dashboard"
-    selected={
-      location.pathname === "/technician-dashboard"
-    }
-  >
-    <ListItemIcon>
-      <EngineeringIcon />
-    </ListItemIcon>
+        {(isManager || isTechnician) && (
+          <ListItemButton
+            component={Link}
+            to="/time-logs"
+            selected={location.pathname === "/time-logs"}
+          >
+            <ListItemIcon>
+              <AccessTimeIcon />
+            </ListItemIcon>
+            <ListItemText primary="Time Logs" />
+          </ListItemButton>
+        )}
 
-    <ListItemText
-      primary="Technician Dashboard"
-    />
-  </ListItemButton>
-)}
-        {(role === "ADMIN" || role === "ENGINEER") && (
-  <ListItemButton
-    component={Link}
-    to="/parts"
-    selected={location.pathname === "/parts"}
-  >
-    <ListItemIcon>
-      <Inventory2Icon />
-    </ListItemIcon>
+        {isManager && (
+          <ListItemButton
+            component={Link}
+            to="/dispatch"
+            selected={location.pathname === "/dispatch"}
+          >
+            <ListItemIcon>
+              <LocalShippingIcon />
+            </ListItemIcon>
+            <ListItemText primary="Dispatch" />
+          </ListItemButton>
+        )}
 
-    <ListItemText primary="Parts" />
-  </ListItemButton>
-)}
-{(role === "ADMIN" ||
-  role === "ENGINEER") && (
-  <ListItemButton
-    component={Link}
-    to="/part-usage"
-    selected={location.pathname === "/part-usage"}
-  >
-    <ListItemIcon>
-      <BuildCircleIcon />
-    </ListItemIcon>
+        {isManager && (
+          <ListItemButton
+            component={Link}
+            to="/reports"
+            selected={location.pathname === "/reports"}
+          >
+            <ListItemIcon>
+              <AssessmentIcon />
+            </ListItemIcon>
+            <ListItemText primary="Reports" />
+          </ListItemButton>
+        )}
 
-    <ListItemText primary="Part Usage" />
-  </ListItemButton>
-)}
-{(role === "ADMIN" ||
-  role === "ENGINEER") && (
-  <ListItemButton
-    component={Link}
-    to="/time-logs"
-    selected={location.pathname === "/time-logs"}
-  >
-    <ListItemIcon>
-      <AccessTimeIcon />
-    </ListItemIcon>
-
-    <ListItemText primary="Time Logs" />
-  </ListItemButton>
-)}
-        {role === "ADMIN" && (
-  <ListItemButton
-    component={Link}
-    to="/dispatch"
-    selected={location.pathname === "/dispatch"}
-  >
-    <ListItemIcon>
-      <LocalShippingIcon />
-    </ListItemIcon>
-
-    <ListItemText primary="Dispatch" />
-  </ListItemButton>
-)}
-{role === "ADMIN" && (
-  <ListItemButton
-    component={Link}
-    to="/reports"
-    selected={location.pathname === "/reports"}
-  >
-    <ListItemIcon>
-      <AssessmentIcon />
-    </ListItemIcon>
-
-    <ListItemText primary="Reports" />
-  </ListItemButton>
-)}
-
-        <ListItemButton
-          onClick={handleLogout}
-        >
+        <ListItemButton onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon />
           </ListItemIcon>
           <ListItemText primary="Logout" />
         </ListItemButton>
-
       </List>
-
     </Drawer>
   );
 }
