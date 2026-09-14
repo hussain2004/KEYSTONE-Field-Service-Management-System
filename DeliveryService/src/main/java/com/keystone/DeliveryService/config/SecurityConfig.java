@@ -30,43 +30,108 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+
                 .cors(Customizer.withDefaults())
+
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
+                )
+
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public
-                        .requestMatchers("/api/auth/**").permitAll()
+                        // =====================================================
+                        // PUBLIC
+                        // =====================================================
 
-                        // ADMIN only
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/customers/**").hasRole("ADMIN")
-                        .requestMatchers("/api/sites/**").hasRole("ADMIN")
-                        .requestMatchers("/api/technicians/**").hasRole("ADMIN")
-                        .requestMatchers("/api/dispatch/**").hasRole("ADMIN")
-                        .requestMatchers("/api/reports/**").hasRole("ADMIN")
+                        .requestMatchers("/api/auth/**")
+                        .permitAll()
 
-                        // ADMIN + ENGINEER
-                        .requestMatchers("/api/dashboard/**")
-                        .hasAnyRole("ADMIN", "ENGINEER")
+
+                        // =====================================================
+                        // MANAGER + DISPATCHER
+                        // =====================================================
+
+                        .requestMatchers("/api/customers/**")
+                        .hasAnyRole("MANAGER", "DISPATCHER")
+
+                        .requestMatchers("/api/sites/**")
+                        .hasAnyRole("MANAGER", "DISPATCHER")
 
                         .requestMatchers("/api/work-orders/**")
-                        .hasAnyRole("ADMIN", "ENGINEER")
+                        .hasAnyRole(
+                                "MANAGER",
+                                "DISPATCHER",
+                                "TECHNICIAN"
+                        )
+
+                        .requestMatchers("/api/dispatch/**")
+                        .hasAnyRole("MANAGER", "DISPATCHER")
+
+
+                        // =====================================================
+                        // MANAGER ONLY
+                        // =====================================================
+
+                        .requestMatchers("/api/users/**")
+                        .hasRole("MANAGER")
+
+                        .requestMatchers("/api/technicians/**")
+                        .hasRole("MANAGER")
+
+                        .requestMatchers("/api/reports/**")
+                        .hasRole("MANAGER")
+
+
+                        // =====================================================
+                        // MANAGER + DISPATCHER + TECHNICIAN
+                        // =====================================================
 
                         .requestMatchers("/api/parts/**")
-                        .hasAnyRole("ADMIN", "ENGINEER")
+                        .hasAnyRole(
+                                "MANAGER",
+                                "DISPATCHER",
+                                "TECHNICIAN"
+                        )
 
                         .requestMatchers("/api/part-usage/**")
-                        .hasAnyRole("ADMIN", "ENGINEER")
+                        .hasAnyRole(
+                                "MANAGER",
+                                "TECHNICIAN"
+                        )
 
                         .requestMatchers("/api/time-logs/**")
-                        .hasAnyRole("ADMIN", "ENGINEER")
+                        .hasAnyRole(
+                                "MANAGER",
+                                "TECHNICIAN"
+                        )
 
-                        .requestMatchers("/api/**").authenticated()
 
-                        .anyRequest().permitAll()
+                        // =====================================================
+                        // DASHBOARD
+                        // =====================================================
+
+                        .requestMatchers("/api/dashboard/**")
+                        .hasAnyRole(
+                                "MANAGER",
+                                "DISPATCHER"
+                        )
+
+
+                        // =====================================================
+                        // ALL OTHER API ENDPOINTS
+                        // =====================================================
+
+                        .requestMatchers("/api/**")
+                        .authenticated()
+
+                        .anyRequest()
+                        .permitAll()
                 )
+
                 .userDetailsService(userDetailsService)
+
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -75,10 +140,12 @@ public class SecurityConfig {
         return http.build();
     }
 
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
 
     @Bean
     public AuthenticationManager authenticationManager(

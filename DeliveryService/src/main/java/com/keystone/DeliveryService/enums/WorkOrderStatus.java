@@ -1,12 +1,11 @@
 package com.keystone.DeliveryService.enums;
 
 public enum WorkOrderStatus {
-
-    OPEN,
+    NEW,
     ASSIGNED,
     IN_PROGRESS,
     ON_HOLD,
     COMPLETED,
-    CLOSED
-
+    CLOSED,
+    CANCELLED
 }

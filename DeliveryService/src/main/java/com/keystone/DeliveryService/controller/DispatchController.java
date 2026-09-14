@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dispatch")
@@ -16,7 +17,11 @@ public class DispatchController {
 
     @GetMapping("/queue")
     public List<DispatchResponse> getDispatchQueue() {
-
         return dispatchService.getDispatchQueue();
+    }
+
+    @GetMapping("/kanban")
+    public Map<String, List<DispatchResponse>> getKanbanBoard() {
+        return dispatchService.getKanbanBoard();
     }
 }

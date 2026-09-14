@@ -22,14 +22,21 @@ public class DataInitializer implements CommandLineRunner {
                 "Administrator",
                 "admin@keystone.com",
                 "admin123",
-                Role.ADMIN
+                Role.MANAGER
         );
 
         createUser(
                 "Engineer",
                 "engineer@keystone.com",
                 "engineer123",
-                Role.ENGINEER
+                Role.TECHNICIAN
+        );
+
+        createUser(
+                "Dispatcher",
+                "dispatcher@keystone.com",
+                "dispatcher123",
+                Role.DISPATCHER
         );
 
         createUser(

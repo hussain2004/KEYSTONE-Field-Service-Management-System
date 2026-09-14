@@ -1,161 +1,200 @@
 package com.keystone.DeliveryService.service;
 
+import com.keystone.DeliveryService.dto.workorder.CloseWorkResponse;
+import com.keystone.DeliveryService.dto.workorder.CompleteWorkResponse;
+import com.keystone.DeliveryService.dto.workorder.HoldWorkResponse;
+import com.keystone.DeliveryService.dto.workorder.ResumeWorkResponse;
+import com.keystone.DeliveryService.dto.workorder.StartWorkResponse;
 import com.keystone.DeliveryService.dto.workorder.WorkOrderRequest;
 import com.keystone.DeliveryService.dto.workorder.WorkOrderResponse;
 import com.keystone.DeliveryService.dto.workorder.WorkOrderUpdateRequest;
 import com.keystone.DeliveryService.entity.Customer;
 import com.keystone.DeliveryService.entity.Site;
+import com.keystone.DeliveryService.entity.StatusHistory;
 import com.keystone.DeliveryService.entity.Technician;
 import com.keystone.DeliveryService.entity.WorkOrder;
 import com.keystone.DeliveryService.enums.WorkOrderStatus;
 import com.keystone.DeliveryService.exception.ResourceNotFoundException;
 import com.keystone.DeliveryService.repository.CustomerRepository;
 import com.keystone.DeliveryService.repository.SiteRepository;
+import com.keystone.DeliveryService.repository.StatusHistoryRepository;
 import com.keystone.DeliveryService.repository.TechnicianRepository;
 import com.keystone.DeliveryService.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import com.keystone.DeliveryService.dto.workorder.StartWorkResponse;
-import com.keystone.DeliveryService.dto.workorder.HoldWorkResponse;
-import com.keystone.DeliveryService.dto.workorder.ResumeWorkResponse;
-import com.keystone.DeliveryService.dto.workorder.CompleteWorkResponse;
-import com.keystone.DeliveryService.dto.workorder.CloseWorkResponse;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class WorkOrderService {
 
     private final WorkOrderRepository workOrderRepository;
     private final CustomerRepository customerRepository;
     private final SiteRepository siteRepository;
     private final TechnicianRepository technicianRepository;
-    private final StatusHistoryService statusHistoryService;
+    private final StatusHistoryRepository statusHistoryRepository;
+    private final NotificationService notificationService;
+
+    private static final Map<WorkOrderStatus, Set<WorkOrderStatus>> ALLOWED_TRANSITIONS = Map.of(
+            WorkOrderStatus.NEW,
+            Set.of(WorkOrderStatus.ASSIGNED, WorkOrderStatus.CANCELLED),
+
+            WorkOrderStatus.ASSIGNED,
+            Set.of(WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.CANCELLED),
+
+            WorkOrderStatus.IN_PROGRESS,
+            Set.of(
+                    WorkOrderStatus.ON_HOLD,
+                    WorkOrderStatus.COMPLETED,
+                    WorkOrderStatus.CANCELLED
+            ),
+
+            WorkOrderStatus.ON_HOLD,
+            Set.of(
+                    WorkOrderStatus.IN_PROGRESS,
+                    WorkOrderStatus.CANCELLED
+            ),
+
+            WorkOrderStatus.COMPLETED,
+            Set.of(WorkOrderStatus.CLOSED),
+
+            WorkOrderStatus.CLOSED,
+            Set.of(),
+
+            WorkOrderStatus.CANCELLED,
+            Set.of()
+    );
 
     public WorkOrderResponse createWorkOrder(WorkOrderRequest request) {
 
-        Customer customer = customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Customer not found with id: " + request.getCustomerId()));
+        Customer customer =
+                customerRepository.findById(request.getCustomerId())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException("Customer not found"));
 
-        Site site = siteRepository.findById(request.getSiteId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Site not found with id: " + request.getSiteId()));
+        Site site =
+                siteRepository.findById(request.getSiteId())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException("Site not found"));
 
         Technician technician = null;
 
         if (request.getTechnicianId() != null) {
-            technician = technicianRepository.findById(request.getTechnicianId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Technician not found with id: " + request.getTechnicianId()));
+            technician =
+                    technicianRepository.findById(request.getTechnicianId())
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException("Technician not found"));
+
+            if (!Boolean.TRUE.equals(technician.getActive())) {
+                throw new IllegalStateException("Technician is inactive");
+            }
         }
 
-        WorkOrder workOrder = WorkOrder.builder()
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .priority(request.getPriority())
-                .status(WorkOrderStatus.OPEN)
-                .scheduledDate(request.getScheduledDate())
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
-                .slaDueDate(request.getSlaDueDate())
-                .slaBreached(false)
-                .customer(customer)
-                .site(site)
-                .technician(technician)
-                .build();
+        LocalDateTime slaDueDate = request.getSlaDueDate();
 
-        WorkOrder savedWorkOrder = workOrderRepository.save(workOrder);
+        if (slaDueDate == null) {
+            slaDueDate = calculateSlaDueDate(request.getPriority());
+        }
 
-        savedWorkOrder.setWorkOrderCode(
-                String.format("WO-%06d", savedWorkOrder.getId())
+        WorkOrder workOrder =
+                WorkOrder.builder()
+                        .workOrderCode("TEMP")
+                        .title(request.getTitle())
+                        .description(request.getDescription())
+                        .priority(request.getPriority())
+                        .status(
+                                technician == null
+                                        ? WorkOrderStatus.NEW
+                                        : WorkOrderStatus.ASSIGNED
+                        )
+                        .scheduledDate(request.getScheduledDate())
+                        .startTime(request.getStartTime())
+                        .endTime(request.getEndTime())
+                        .slaDueDate(slaDueDate)
+                        .slaBreached(false)
+                        .customer(customer)
+                        .site(site)
+                        .technician(technician)
+                        .build();
+
+        WorkOrder saved = workOrderRepository.save(workOrder);
+
+        saved.setWorkOrderCode(
+                String.format("WO-%06d", saved.getId())
         );
 
-        savedWorkOrder = workOrderRepository.save(savedWorkOrder);
+        saved = workOrderRepository.save(saved);
 
-        return mapToResponse(savedWorkOrder);
-    }
-
-    public WorkOrderResponse assignTechnician(Long workOrderId, Long technicianId) {
-
-        WorkOrder workOrder = workOrderRepository.findById(workOrderId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + workOrderId));
-
-        if (workOrder.getStatus() != WorkOrderStatus.OPEN) {
-            throw new IllegalStateException(
-                    "Technician can only be assigned to an OPEN Work Order.");
+        if (technician != null) {
+            notificationService.createAssignmentNotification(
+                    saved,
+                    technician
+            );
         }
 
-        Technician technician = technicianRepository.findById(technicianId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Technician not found with id: " + technicianId));
-
-        if (!Boolean.TRUE.equals(technician.getActive())) {
-            throw new IllegalStateException(
-                    "Technician is inactive.");
-        }
-
-        WorkOrderStatus oldStatus = workOrder.getStatus();
-
-        workOrder.setTechnician(technician);
-        workOrder.setStatus(WorkOrderStatus.ASSIGNED);
-
-        WorkOrder updatedWorkOrder = workOrderRepository.save(workOrder);
-
-        statusHistoryService.saveStatusHistory(
-                updatedWorkOrder,
-                oldStatus,
-                WorkOrderStatus.ASSIGNED,
-                "ADMIN"
-        );
-
-        return mapToResponse(updatedWorkOrder);
+        return mapToResponse(saved);
     }
 
-    private WorkOrderResponse mapToResponse(WorkOrder workOrder) {
-
-        WorkOrderResponse response = new WorkOrderResponse();
-
-        response.setId(workOrder.getId());
-        response.setWorkOrderCode(workOrder.getWorkOrderCode());
-
-        response.setTitle(workOrder.getTitle());
-        response.setDescription(workOrder.getDescription());
-
-        response.setPriority(workOrder.getPriority());
-        response.setStatus(workOrder.getStatus());
-
-        response.setScheduledDate(workOrder.getScheduledDate());
-        response.setStartTime(workOrder.getStartTime());
-        response.setEndTime(workOrder.getEndTime());
-        response.setSlaDueDate(workOrder.getSlaDueDate());
-        response.setSlaBreached(workOrder.getSlaBreached());
-        response.setCustomerId(workOrder.getCustomer().getId());
-        response.setCustomerName(workOrder.getCustomer().getCustomerName());
-
-        response.setSiteId(workOrder.getSite().getId());
-        response.setSiteName(workOrder.getSite().getSiteName());
-
-        if (workOrder.getTechnician() != null) {
-
-            response.setTechnicianId(workOrder.getTechnician().getId());
-            response.setTechnicianName(
-                    workOrder.getTechnician().getTechnicianName());
-        }
-
-        return response;
-    }
-
+    @Transactional(readOnly = true)
     public List<WorkOrderResponse> getAllWorkOrders() {
-        return workOrderRepository.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+
+        if (hasRole("TECHNICIAN")) {
+
+            Technician technician = getCurrentTechnician();
+
+            return workOrderRepository
+                    .findByTechnicianId(technician.getId())
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        if (hasRole("MANAGER") || hasRole("DISPATCHER")) {
+
+            return workOrderRepository
+                    .findAll()
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        throw new AccessDeniedException(
+                "You are not allowed to view work orders"
+        );
     }
-    public List<WorkOrderResponse> getWorkOrdersByTechnician(
-            Long technicianId) {
+
+    @Transactional(readOnly = true)
+    public List<WorkOrderResponse> getWorkOrdersByTechnician(Long technicianId) {
+
+        if (hasRole("TECHNICIAN")) {
+
+            Technician currentTechnician = getCurrentTechnician();
+
+            if (!currentTechnician.getId().equals(technicianId)) {
+                throw new AccessDeniedException(
+                        "You can only access your own assigned work orders"
+                );
+            }
+        }
+
+        if (!hasAnyRole("MANAGER", "DISPATCHER", "TECHNICIAN")) {
+            throw new AccessDeniedException(
+                    "You are not allowed to view technician work orders"
+            );
+        }
+
+        technicianRepository.findById(technicianId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Technician not found"));
 
         return workOrderRepository
                 .findByTechnicianId(technicianId)
@@ -164,264 +203,518 @@ public class WorkOrderService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public WorkOrderResponse getWorkOrderById(Long id) {
 
-        WorkOrder workOrder = workOrderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + id));
+        WorkOrder workOrder = getWorkOrder(id);
+
+        if (hasRole("TECHNICIAN")) {
+            requireAssignedTechnician(workOrder);
+        }
 
         return mapToResponse(workOrder);
     }
 
-    public WorkOrderResponse updateWorkOrder(Long id, WorkOrderUpdateRequest request) {
+    public WorkOrderResponse updateWorkOrder(
+            Long id,
+            WorkOrderUpdateRequest request) {
 
-        WorkOrder workOrder = workOrderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + id));
+        WorkOrder workOrder = getWorkOrder(id);
 
-        if (workOrder.getStatus() == WorkOrderStatus.CLOSED) {
-            throw new IllegalStateException(
-                    "Closed Work Orders cannot be updated.");
+        if (hasRole("TECHNICIAN")) {
+            throw new AccessDeniedException(
+                    "Technicians cannot edit work orders"
+            );
         }
 
-        if (workOrder.getStatus() != request.getStatus()
-                && !isValidStatusTransition(
-                workOrder.getStatus(),
-                request.getStatus())) {
+        if (workOrder.getStatus() == WorkOrderStatus.CLOSED ||
+                workOrder.getStatus() == WorkOrderStatus.CANCELLED) {
 
             throw new IllegalStateException(
-                    "Invalid status transition from "
-                            + workOrder.getStatus()
-                            + " to "
-                            + request.getStatus());
+                    "Closed or cancelled work orders cannot be updated"
+            );
         }
 
-        Customer customer = customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Customer not found with id: " + request.getCustomerId()));
+        Customer customer =
+                customerRepository.findById(request.getCustomerId())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException("Customer not found"));
 
-        Site site = siteRepository.findById(request.getSiteId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Site not found with id: " + request.getSiteId()));
+        Site site =
+                siteRepository.findById(request.getSiteId())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException("Site not found"));
 
+        Technician oldTechnician = workOrder.getTechnician();
         Technician technician = null;
 
         if (request.getTechnicianId() != null) {
-            technician = technicianRepository.findById(request.getTechnicianId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Technician not found with id: " + request.getTechnicianId()));
+
+            technician =
+                    technicianRepository.findById(request.getTechnicianId())
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException("Technician not found"));
+
+            if (!Boolean.TRUE.equals(technician.getActive())) {
+                throw new IllegalStateException("Technician is inactive");
+            }
+        }
+
+        WorkOrderStatus oldStatus = workOrder.getStatus();
+        WorkOrderStatus newStatus = request.getStatus();
+
+        if (oldStatus != newStatus) {
+            validateTransition(oldStatus, newStatus);
         }
 
         workOrder.setTitle(request.getTitle());
         workOrder.setDescription(request.getDescription());
         workOrder.setPriority(request.getPriority());
-        workOrder.setStatus(request.getStatus());
         workOrder.setScheduledDate(request.getScheduledDate());
         workOrder.setStartTime(request.getStartTime());
         workOrder.setEndTime(request.getEndTime());
         workOrder.setCustomer(customer);
         workOrder.setSite(site);
+        workOrder.setTechnician(technician);
 
+        LocalDateTime slaDueDate = request.getSlaDueDate();
 
-        WorkOrder updatedWorkOrder = workOrderRepository.save(workOrder);
+        if (slaDueDate == null) {
+            slaDueDate = calculateSlaDueDate(request.getPriority());
+        }
 
-        return mapToResponse(updatedWorkOrder);
+        workOrder.setSlaDueDate(slaDueDate);
+        workOrder.setSlaBreached(
+                slaDueDate.isBefore(LocalDateTime.now())
+                        && !isTerminalStatus(newStatus)
+        );
+
+        workOrder.setStatus(newStatus);
+
+        WorkOrder saved = workOrderRepository.save(workOrder);
+
+        if (oldStatus != newStatus) {
+            saveHistory(
+                    saved,
+                    oldStatus,
+                    newStatus,
+                    currentUsername()
+            );
+        }
+
+        boolean technicianChanged =
+                technician != null &&
+                        (oldTechnician == null ||
+                                !oldTechnician.getId().equals(technician.getId()));
+
+        if (technicianChanged) {
+            notificationService.createAssignmentNotification(
+                    saved,
+                    technician
+            );
+        }
+
+        return mapToResponse(saved);
+    }
+
+    public WorkOrderResponse assignTechnician(
+            Long id,
+            Long technicianId) {
+
+        WorkOrder workOrder = getWorkOrder(id);
+
+        Technician technician =
+                technicianRepository.findById(technicianId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException("Technician not found"));
+
+        if (!Boolean.TRUE.equals(technician.getActive())) {
+            throw new IllegalStateException("Technician is inactive");
+        }
+
+        WorkOrderStatus oldStatus = workOrder.getStatus();
+
+        if (oldStatus != WorkOrderStatus.NEW &&
+                oldStatus != WorkOrderStatus.ASSIGNED) {
+
+            throw new IllegalStateException(
+                    "Technician can only be assigned to NEW or ASSIGNED work orders"
+            );
+        }
+
+        Technician oldTechnician = workOrder.getTechnician();
+
+        boolean technicianChanged =
+                oldTechnician == null ||
+                        !oldTechnician.getId().equals(technician.getId());
+
+        workOrder.setTechnician(technician);
+        workOrder.setStatus(WorkOrderStatus.ASSIGNED);
+
+        WorkOrder saved = workOrderRepository.save(workOrder);
+
+        if (oldStatus != WorkOrderStatus.ASSIGNED) {
+            saveHistory(
+                    saved,
+                    oldStatus,
+                    WorkOrderStatus.ASSIGNED,
+                    currentUsername()
+            );
+        }
+
+        if (technicianChanged) {
+            notificationService.createAssignmentNotification(
+                    saved,
+                    technician
+            );
+        }
+
+        return mapToResponse(saved);
+    }
+
+    public StartWorkResponse startWork(Long id) {
+
+        WorkOrder workOrder = getWorkOrder(id);
+
+        requireTechnicianActionPermission(workOrder);
+
+        transition(workOrder, WorkOrderStatus.IN_PROGRESS);
+
+        return StartWorkResponse.builder()
+                .workOrderId(workOrder.getId())
+                .workOrderCode(workOrder.getWorkOrderCode())
+                .status(workOrder.getStatus().name())
+                .startTime(workOrder.getStartTime())
+                .build();
+    }
+
+    public HoldWorkResponse holdWork(Long id) {
+
+        WorkOrder workOrder = getWorkOrder(id);
+
+        requireTechnicianActionPermission(workOrder);
+
+        transition(workOrder, WorkOrderStatus.ON_HOLD);
+
+        return HoldWorkResponse.builder()
+                .workOrderId(workOrder.getId())
+                .workOrderCode(workOrder.getWorkOrderCode())
+                .status(workOrder.getStatus().name())
+                .build();
+    }
+
+    public ResumeWorkResponse resumeWork(Long id) {
+
+        WorkOrder workOrder = getWorkOrder(id);
+
+        requireTechnicianActionPermission(workOrder);
+
+        transition(workOrder, WorkOrderStatus.IN_PROGRESS);
+
+        return ResumeWorkResponse.builder()
+                .workOrderId(workOrder.getId())
+                .workOrderCode(workOrder.getWorkOrderCode())
+                .status(workOrder.getStatus().name())
+                .build();
+    }
+
+    public CompleteWorkResponse completeWork(Long id) {
+
+        WorkOrder workOrder = getWorkOrder(id);
+
+        requireTechnicianActionPermission(workOrder);
+
+        transition(workOrder, WorkOrderStatus.COMPLETED);
+
+        return CompleteWorkResponse.builder()
+                .workOrderId(workOrder.getId())
+                .workOrderCode(workOrder.getWorkOrderCode())
+                .status(workOrder.getStatus().name())
+                .endTime(workOrder.getEndTime())
+                .build();
+    }
+
+    public CloseWorkResponse closeWork(Long id) {
+
+        WorkOrder workOrder = getWorkOrder(id);
+
+        if (!hasAnyRole("MANAGER", "DISPATCHER")) {
+            throw new AccessDeniedException(
+                    "Only managers or dispatchers can close work orders"
+            );
+        }
+
+        transition(workOrder, WorkOrderStatus.CLOSED);
+
+        return CloseWorkResponse.builder()
+                .workOrderId(workOrder.getId())
+                .workOrderCode(workOrder.getWorkOrderCode())
+                .status(workOrder.getStatus().name())
+                .build();
+    }
+
+    public WorkOrderResponse cancelWorkOrder(Long id) {
+
+        WorkOrder workOrder = getWorkOrder(id);
+
+        if (!hasAnyRole("MANAGER", "DISPATCHER")) {
+            throw new AccessDeniedException(
+                    "Only managers or dispatchers can cancel work orders"
+            );
+        }
+
+        transition(workOrder, WorkOrderStatus.CANCELLED);
+
+        return mapToResponse(workOrder);
     }
 
     public void deleteWorkOrder(Long id) {
 
-        WorkOrder workOrder = workOrderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + id));
+        WorkOrder workOrder = getWorkOrder(id);
+
+        if (!hasRole("MANAGER")) {
+            throw new AccessDeniedException(
+                    "Only managers can delete work orders"
+            );
+        }
 
         workOrderRepository.delete(workOrder);
     }
 
-    private boolean isValidStatusTransition(
-            WorkOrderStatus currentStatus,
+    private void transition(
+            WorkOrder workOrder,
             WorkOrderStatus newStatus) {
 
-        return switch (currentStatus) {
+        WorkOrderStatus oldStatus = workOrder.getStatus();
 
-            case OPEN ->
-                    newStatus == WorkOrderStatus.ASSIGNED;
+        validateTransition(oldStatus, newStatus);
 
-            case ASSIGNED ->
-                    newStatus == WorkOrderStatus.IN_PROGRESS;
+        workOrder.setStatus(newStatus);
 
-            case IN_PROGRESS ->
-                    newStatus == WorkOrderStatus.ON_HOLD
-                            || newStatus == WorkOrderStatus.COMPLETED;
+        if (newStatus == WorkOrderStatus.IN_PROGRESS &&
+                workOrder.getStartTime() == null) {
 
-            case ON_HOLD ->
-                    newStatus == WorkOrderStatus.IN_PROGRESS;
+            workOrder.setStartTime(LocalDateTime.now());
+        }
 
-            case COMPLETED ->
-                    newStatus == WorkOrderStatus.CLOSED;
+        if (newStatus == WorkOrderStatus.COMPLETED &&
+                workOrder.getEndTime() == null) {
 
-            case CLOSED ->
-                    false;
+            workOrder.setEndTime(LocalDateTime.now());
+        }
+
+        WorkOrder saved = workOrderRepository.save(workOrder);
+
+        saveHistory(
+                saved,
+                oldStatus,
+                newStatus,
+                currentUsername()
+        );
+    }
+
+    private void validateTransition(
+            WorkOrderStatus oldStatus,
+            WorkOrderStatus newStatus) {
+
+        if (oldStatus == newStatus) {
+            return;
+        }
+
+        Set<WorkOrderStatus> allowed =
+                ALLOWED_TRANSITIONS.getOrDefault(
+                        oldStatus,
+                        Set.of()
+                );
+
+        if (!allowed.contains(newStatus)) {
+            throw new IllegalStateException(
+                    "Invalid work order status transition from "
+                            + oldStatus
+                            + " to "
+                            + newStatus
+            );
+        }
+    }
+
+    private void requireTechnicianActionPermission(
+            WorkOrder workOrder) {
+
+        if (hasRole("TECHNICIAN")) {
+            requireAssignedTechnician(workOrder);
+            return;
+        }
+
+        if (!hasAnyRole("MANAGER", "DISPATCHER")) {
+            throw new AccessDeniedException(
+                    "You are not allowed to perform this action"
+            );
+        }
+    }
+
+    private void requireAssignedTechnician(
+            WorkOrder workOrder) {
+
+        if (workOrder.getTechnician() == null) {
+            throw new AccessDeniedException(
+                    "Work order is not assigned to a technician"
+            );
+        }
+
+        String currentUser = currentUsername();
+
+        if (!workOrder.getTechnician()
+                .getEmail()
+                .equalsIgnoreCase(currentUser)) {
+
+            throw new AccessDeniedException(
+                    "You can only access work orders assigned to you"
+            );
+        }
+    }
+
+    private Technician getCurrentTechnician() {
+
+        String email = currentUsername();
+
+        return technicianRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new AccessDeniedException(
+                                "Technician profile not found"
+                        ));
+    }
+
+    private WorkOrder getWorkOrder(Long id) {
+
+        return workOrderRepository
+                .findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Work order not found"
+                        ));
+    }
+
+    private void saveHistory(
+            WorkOrder workOrder,
+            WorkOrderStatus oldStatus,
+            WorkOrderStatus newStatus,
+            String changedBy) {
+
+        StatusHistory history =
+                StatusHistory.builder()
+                        .workOrder(workOrder)
+                        .oldStatus(oldStatus)
+                        .newStatus(newStatus)
+                        .changedAt(LocalDateTime.now())
+                        .changedBy(changedBy)
+                        .build();
+
+        statusHistoryRepository.save(history);
+    }
+
+    private String currentUsername() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null ||
+                !authentication.isAuthenticated()) {
+
+            return "SYSTEM";
+        }
+
+        return authentication.getName();
+    }
+
+    private boolean hasRole(String role) {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        return authentication != null &&
+                authentication.getAuthorities()
+                        .stream()
+                        .anyMatch(authority ->
+                                authority.getAuthority()
+                                        .equals("ROLE_" + role)
+                        );
+    }
+
+    private boolean hasAnyRole(String... roles) {
+
+        for (String role : roles) {
+            if (hasRole(role)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isTerminalStatus(WorkOrderStatus status) {
+
+        return status == WorkOrderStatus.COMPLETED ||
+                status == WorkOrderStatus.CLOSED ||
+                status == WorkOrderStatus.CANCELLED;
+    }
+
+    private LocalDateTime calculateSlaDueDate(
+            com.keystone.DeliveryService.enums.Priority priority) {
+
+        int hours = switch (priority) {
+            case HIGH -> 24;
+            case MEDIUM -> 48;
+            case LOW -> 72;
         };
-    }
-    public StartWorkResponse startWork(Long workOrderId) {
 
-        WorkOrder workOrder = workOrderRepository.findById(workOrderId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + workOrderId));
-
-        if (workOrder.getStatus() != WorkOrderStatus.ASSIGNED) {
-            throw new IllegalStateException(
-                    "Only ASSIGNED Work Orders can be started.");
-        }
-
-        WorkOrderStatus oldStatus = workOrder.getStatus();
-
-        workOrder.setStatus(WorkOrderStatus.IN_PROGRESS);
-        workOrder.setStartTime(java.time.LocalDateTime.now());
-
-        WorkOrder updatedWorkOrder = workOrderRepository.save(workOrder);
-
-        statusHistoryService.saveStatusHistory(
-                updatedWorkOrder,
-                oldStatus,
-                WorkOrderStatus.IN_PROGRESS,
-                "TECHNICIAN"
-        );
-
-        return StartWorkResponse.builder()
-                .workOrderId(updatedWorkOrder.getId())
-                .workOrderCode(updatedWorkOrder.getWorkOrderCode())
-                .status(updatedWorkOrder.getStatus().name())
-                .startTime(updatedWorkOrder.getStartTime())
-                .build();
-    }
-    public HoldWorkResponse holdWork(Long workOrderId) {
-
-        WorkOrder workOrder = workOrderRepository.findById(workOrderId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + workOrderId));
-
-        if (workOrder.getStatus() != WorkOrderStatus.IN_PROGRESS) {
-            throw new IllegalStateException(
-                    "Only IN_PROGRESS Work Orders can be put on hold.");
-        }
-
-        WorkOrderStatus oldStatus = workOrder.getStatus();
-
-        workOrder.setStatus(WorkOrderStatus.ON_HOLD);
-
-        WorkOrder updatedWorkOrder = workOrderRepository.save(workOrder);
-
-        statusHistoryService.saveStatusHistory(
-                updatedWorkOrder,
-                oldStatus,
-                WorkOrderStatus.ON_HOLD,
-                "TECHNICIAN"
-        );
-
-        return HoldWorkResponse.builder()
-                .workOrderId(updatedWorkOrder.getId())
-                .workOrderCode(updatedWorkOrder.getWorkOrderCode())
-                .status(updatedWorkOrder.getStatus().name())
-                .build();
-    }
-    public ResumeWorkResponse resumeWork(Long workOrderId) {
-
-        WorkOrder workOrder = workOrderRepository.findById(workOrderId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + workOrderId));
-
-        if (workOrder.getStatus() != WorkOrderStatus.ON_HOLD) {
-            throw new IllegalStateException(
-                    "Only ON_HOLD Work Orders can be resumed.");
-        }
-
-        WorkOrderStatus oldStatus = workOrder.getStatus();
-
-        workOrder.setStatus(WorkOrderStatus.IN_PROGRESS);
-
-        WorkOrder updatedWorkOrder = workOrderRepository.save(workOrder);
-
-        statusHistoryService.saveStatusHistory(
-                updatedWorkOrder,
-                oldStatus,
-                WorkOrderStatus.IN_PROGRESS,
-                "TECHNICIAN"
-        );
-
-        return ResumeWorkResponse.builder()
-                .workOrderId(updatedWorkOrder.getId())
-                .workOrderCode(updatedWorkOrder.getWorkOrderCode())
-                .status(updatedWorkOrder.getStatus().name())
-                .build();
-    }
-    public CompleteWorkResponse completeWork(Long workOrderId) {
-
-        WorkOrder workOrder = workOrderRepository.findById(workOrderId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + workOrderId));
-
-        if (workOrder.getStatus() != WorkOrderStatus.IN_PROGRESS) {
-            throw new IllegalStateException(
-                    "Only IN_PROGRESS Work Orders can be completed.");
-        }
-
-        WorkOrderStatus oldStatus = workOrder.getStatus();
-
-        workOrder.setStatus(WorkOrderStatus.COMPLETED);
-        workOrder.setEndTime(java.time.LocalDateTime.now());
-        if (workOrder.getSlaDueDate() != null &&
-                workOrder.getEndTime().isAfter(workOrder.getSlaDueDate())) {
-
-            workOrder.setSlaBreached(true);
-
-        }
-
-        WorkOrder updatedWorkOrder = workOrderRepository.save(workOrder);
-
-        statusHistoryService.saveStatusHistory(
-                updatedWorkOrder,
-                oldStatus,
-                WorkOrderStatus.COMPLETED,
-                "TECHNICIAN"
-        );
-
-        return CompleteWorkResponse.builder()
-                .workOrderId(updatedWorkOrder.getId())
-                .workOrderCode(updatedWorkOrder.getWorkOrderCode())
-                .status(updatedWorkOrder.getStatus().name())
-                .endTime(updatedWorkOrder.getEndTime())
-                .build();
-    }
-    public CloseWorkResponse closeWork(Long workOrderId) {
-
-        WorkOrder workOrder = workOrderRepository.findById(workOrderId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Work Order not found with id: " + workOrderId));
-
-        if (workOrder.getStatus() != WorkOrderStatus.COMPLETED) {
-            throw new IllegalStateException(
-                    "Only COMPLETED Work Orders can be closed.");
-        }
-
-        WorkOrderStatus oldStatus = workOrder.getStatus();
-
-        workOrder.setStatus(WorkOrderStatus.CLOSED);
-
-        WorkOrder updatedWorkOrder = workOrderRepository.save(workOrder);
-
-        statusHistoryService.saveStatusHistory(
-                updatedWorkOrder,
-                oldStatus,
-                WorkOrderStatus.CLOSED,
-                "ADMIN"
-        );
-
-        return CloseWorkResponse.builder()
-                .workOrderId(updatedWorkOrder.getId())
-                .workOrderCode(updatedWorkOrder.getWorkOrderCode())
-                .status(updatedWorkOrder.getStatus().name())
-                .build();
+        return LocalDateTime.now().plusHours(hours);
     }
 
+    private WorkOrderResponse mapToResponse(
+            WorkOrder workOrder) {
+
+        WorkOrderResponse response = new WorkOrderResponse();
+
+        response.setId(workOrder.getId());
+        response.setWorkOrderCode(workOrder.getWorkOrderCode());
+        response.setTitle(workOrder.getTitle());
+        response.setDescription(workOrder.getDescription());
+        response.setPriority(workOrder.getPriority());
+        response.setStatus(workOrder.getStatus());
+        response.setScheduledDate(workOrder.getScheduledDate());
+        response.setStartTime(workOrder.getStartTime());
+        response.setEndTime(workOrder.getEndTime());
+        response.setSlaDueDate(workOrder.getSlaDueDate());
+        response.setSlaBreached(workOrder.getSlaBreached());
+
+        if (workOrder.getCustomer() != null) {
+            response.setCustomerId(workOrder.getCustomer().getId());
+            response.setCustomerName(
+                    workOrder.getCustomer().getCustomerName()
+            );
+        }
+
+        if (workOrder.getSite() != null) {
+            response.setSiteId(workOrder.getSite().getId());
+            response.setSiteName(
+                    workOrder.getSite().getSiteName()
+            );
+        }
+
+        if (workOrder.getTechnician() != null) {
+            response.setTechnicianId(
+                    workOrder.getTechnician().getId()
+            );
+            response.setTechnicianName(
+                    workOrder.getTechnician().getTechnicianName()
+            );
+        }
+
+        return response;
+    }
 }

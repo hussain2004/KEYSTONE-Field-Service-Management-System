@@ -25,7 +25,7 @@ public class ReportService {
                 .totalSites(siteRepository.count())
                 .totalTechnicians(technicianRepository.count())
                 .totalWorkOrders(workOrderRepository.count())
-                .openWorkOrders(workOrderRepository.countByStatus(WorkOrderStatus.OPEN))
+                .openWorkOrders(workOrderRepository.countByStatus(WorkOrderStatus.NEW))
                 .assignedWorkOrders(workOrderRepository.countByStatus(WorkOrderStatus.ASSIGNED))
                 .inProgressWorkOrders(workOrderRepository.countByStatus(WorkOrderStatus.IN_PROGRESS))
                 .onHoldWorkOrders(workOrderRepository.countByStatus(WorkOrderStatus.ON_HOLD))
