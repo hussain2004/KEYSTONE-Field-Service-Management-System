@@ -11,50 +11,33 @@ import { useNavigate } from "react-router-dom";
 import { login } from "../../api/authApi";
 
 function Login() {
-
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-const role = localStorage.getItem("role");
+    const role = localStorage.getItem("role");
 
-if (token) {
+    if (!token) {
+      return;
+    }
 
-    if (role === "ADMIN") {
-
-        navigate("/", { replace: true });
-
-    } else if (role === "ENGINEER") {
-
-        navigate("/technician-dashboard", {
-            replace: true,
-        });
-
-    } else if (role === "CUSTOMER") {
-
-    alert("Customer Portal is under development.");
-
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("role");
-
-    navigate("/login", {
-        replace: true,
-    });
-
-}
-
-}
+    if (role === "MANAGER") {
+      navigate("/", { replace: true });
+    } else if (role === "TECHNICIAN") {
+      navigate("/technician-dashboard", { replace: true });
+    } else {
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      localStorage.removeItem("role");
+    }
   }, [navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     try {
-
       setLoading(true);
 
       const response = await login({
@@ -66,32 +49,20 @@ if (token) {
       localStorage.setItem("username", response.username);
       localStorage.setItem("role", response.role);
 
-      if (response.role === "ADMIN") {
+      if (response.role === "MANAGER") {
+        navigate("/");
+      } else if (response.role === "TECHNICIAN") {
+        navigate("/technician-dashboard");
+      } else {
+        alert("This role does not have a frontend dashboard yet.");
 
-  navigate("/");
+        localStorage.removeItem("token");
+        localStorage.removeItem("username");
+        localStorage.removeItem("role");
 
-} else if (response.role === "ENGINEER") {
-
-  navigate("/technician-dashboard");
-
-} else if (response.role === "CUSTOMER") {
-
-  alert("Customer Portal is under development.");
-
-  localStorage.removeItem("token");
-  localStorage.removeItem("username");
-  localStorage.removeItem("role");
-
-  navigate("/login");
-
-} else {
-
-  navigate("/");
-
-}
-
+        navigate("/login");
+      }
     } catch (error: any) {
-
       console.error(error);
 
       if (error.response) {
@@ -100,7 +71,6 @@ if (token) {
       } else {
         alert(error.message);
       }
-
     } finally {
       setLoading(false);
     }
@@ -124,7 +94,6 @@ if (token) {
         }}
       >
         <CardContent sx={{ p: 4 }}>
-
           <Typography
             variant="h4"
             fontWeight="bold"
@@ -147,9 +116,7 @@ if (token) {
             label="Email"
             margin="normal"
             value={email}
-            onChange={(e) =>
-              setEmail(e.target.value)
-            }
+            onChange={(e) => setEmail(e.target.value)}
           />
 
           <TextField
@@ -158,9 +125,7 @@ if (token) {
             label="Password"
             margin="normal"
             value={password}
-            onChange={(e) =>
-              setPassword(e.target.value)
-            }
+            onChange={(e) => setPassword(e.target.value)}
           />
 
           <Button
@@ -175,27 +140,26 @@ if (token) {
           >
             {loading ? "Signing In..." : "Login"}
           </Button>
+
           <Typography
-  sx={{
-    mt: 2,
-    textAlign: "center",
-    color: "#1976d2",
-    cursor: "pointer",
-    fontSize: 14,
-
-    "&:hover": {
-      textDecoration: "underline",
-    },
-  }}
-  onClick={() =>
-    alert(
-      "Please contact the system administrator to reset your password."
-    )
-  }
->
-  Forgot Password?
-</Typography>
-
+            sx={{
+              mt: 2,
+              textAlign: "center",
+              color: "#1976d2",
+              cursor: "pointer",
+              fontSize: 14,
+              "&:hover": {
+                textDecoration: "underline",
+              },
+            }}
+            onClick={() =>
+              alert(
+                "Please contact the system administrator to reset your password."
+              )
+            }
+          >
+            Forgot Password?
+          </Typography>
         </CardContent>
       </Card>
     </Box>

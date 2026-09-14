@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
 import Dashboard from "./pages/Dashboard/Dashboard";
 import CustomerList from "./pages/Customer/CustomerList";
 import SiteList from "./pages/Site/SiteList";
@@ -14,7 +13,6 @@ import UserList from "./pages/User/UserList";
 import KanbanBoard from "./pages/Kanban/KanbanBoard";
 import TechnicianDashboard from "./pages/TechnicianDashboard/TechnicianDashboard";
 import Login from "./pages/Login/Login";
-
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -22,174 +20,153 @@ function App() {
     <BrowserRouter>
       <Routes>
 
-        {/* Public Route */}
         <Route
           path="/login"
           element={<Login />}
         />
 
-        {/* Protected Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER"]}
+            >
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
-  path="/"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-        "ENGINEER",
-      ]}
-    >
-      <Dashboard />
-    </ProtectedRoute>
-  }
-/>
-        <Route
-  path="/users"
-  element={
-    <ProtectedRoute
-      allowedRoles={["ADMIN"]}
-    >
-      <UserList />
-    </ProtectedRoute>
-  }
-/>
-
-       <Route
-  path="/customers"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-      ]}
-    >
-      <CustomerList />
-    </ProtectedRoute>
-  }
-/>
-        <Route
-  path="/sites"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-      ]}
-    >
-      <SiteList />
-    </ProtectedRoute>
-  }
-/>
+          path="/users"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER"]}
+            >
+              <UserList />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
-  path="/technicians"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-      ]}
-    >
-      <TechnicianList />
-    </ProtectedRoute>
-  }
-/>
+          path="/customers"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER"]}
+            >
+              <CustomerList />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
-  path="/work-orders"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-        "ENGINEER",
-      ]}
-    >
-      <WorkOrderList />
-    </ProtectedRoute>
-  }
-/>
+          path="/sites"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER"]}
+            >
+              <SiteList />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
-  path="/dispatch"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-      ]}
-    >
-      <DispatchPage />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/reports"
-  element={
-    <ProtectedRoute
-      allowedRoles={["ADMIN"]}
-    >
-      <ReportsPage />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/parts"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-        "ENGINEER",
-      ]}
-    >
-      <PartList />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/part-usage"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-        "ENGINEER",
-      ]}
-    >
-      <PartUsageList />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/time-logs"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-        "ENGINEER",
-      ]}
-    >
-      <TimeLogList />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/kanban"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ADMIN",
-      ]}
-    >
-      <KanbanBoard />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/technician-dashboard"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "ENGINEER",
-      ]}
-    >
-      <TechnicianDashboard />
-    </ProtectedRoute>
-  }
-/>
+          path="/technicians"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER"]}
+            >
+              <TechnicianList />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/work-orders"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER", "TECHNICIAN"]}
+            >
+              <WorkOrderList />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dispatch"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER"]}
+            >
+              <DispatchPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER"]}
+            >
+              <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/parts"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER", "TECHNICIAN"]}
+            >
+              <PartList />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/part-usage"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER", "TECHNICIAN"]}
+            >
+              <PartUsageList />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/time-logs"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER", "TECHNICIAN"]}
+            >
+              <TimeLogList />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/kanban"
+          element={
+            <ProtectedRoute
+              allowedRoles={["MANAGER"]}
+            >
+              <KanbanBoard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/technician-dashboard"
+          element={
+            <ProtectedRoute
+              allowedRoles={["TECHNICIAN"]}
+            >
+              <TechnicianDashboard />
+            </ProtectedRoute>
+          }
+        />
 
       </Routes>
     </BrowserRouter>
