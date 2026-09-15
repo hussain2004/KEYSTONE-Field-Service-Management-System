@@ -18,13 +18,16 @@ public class SlaController {
     @GetMapping("/breached")
     @PreAuthorize("hasRole('MANAGER')")
     public List<WorkOrder> getBreachedWorkOrders() {
+
         slaService.checkSla();
+
         return slaService.getBreachedWorkOrders();
     }
 
     @GetMapping("/at-risk")
     @PreAuthorize("hasRole('MANAGER')")
     public List<WorkOrder> getAtRiskWorkOrders() {
+
         return slaService.getAtRiskWorkOrders();
     }
 

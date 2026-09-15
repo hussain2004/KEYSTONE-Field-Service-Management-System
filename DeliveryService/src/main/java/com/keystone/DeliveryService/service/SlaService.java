@@ -67,8 +67,7 @@ public class SlaService {
     public List<WorkOrder> getBreachedWorkOrders() {
 
         return workOrderRepository
-                .findBySlaDueDateBeforeAndSlaBreachedFalseAndStatusNotIn(
-                        LocalDateTime.now(),
+                .findBySlaBreachedTrueAndStatusNotIn(
                         TERMINAL_STATUSES
                 );
     }
@@ -79,7 +78,7 @@ public class SlaService {
         LocalDateTime now = LocalDateTime.now();
 
         return workOrderRepository
-                .findBySlaDueDateBetweenAndStatusNotIn(
+                .findBySlaDueDateBetweenAndSlaBreachedFalseAndStatusNotIn(
                         now,
                         now.plusHours(24),
                         TERMINAL_STATUSES
@@ -93,6 +92,7 @@ public class SlaService {
         Technician technician = workOrder.getTechnician();
 
         if (technician != null) {
+
             notificationService.createSlaNotification(
                     workOrder,
                     technician,

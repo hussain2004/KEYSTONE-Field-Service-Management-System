@@ -9,26 +9,42 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
+public interface WorkOrderRepository
+        extends JpaRepository<WorkOrder, Long> {
 
     List<WorkOrder> findTop5ByOrderByIdDesc();
 
-    boolean existsBySiteId(Long siteId);
-
-    List<WorkOrder> findByStatus(WorkOrderStatus status);
-
-    List<WorkOrder> findByTechnicianId(Long technicianId);
-
-    long countByStatus(WorkOrderStatus status);
-
-    List<WorkOrder> findBySlaDueDateBeforeAndSlaBreachedFalseAndStatusNotIn(
-            LocalDateTime dateTime,
-            List<WorkOrderStatus> excludedStatuses
+    List<WorkOrder> findByStatus(
+            WorkOrderStatus status
     );
 
-    List<WorkOrder> findBySlaDueDateBetweenAndStatusNotIn(
+    List<WorkOrder> findByTechnicianId(
+            Long technicianId
+    );
+
+    boolean existsBySiteId(
+            Long siteId
+    );
+
+    long countByStatus(
+            WorkOrderStatus status
+    );
+
+    List<WorkOrder>
+    findBySlaDueDateBeforeAndSlaBreachedFalseAndStatusNotIn(
+            LocalDateTime dateTime,
+            List<WorkOrderStatus> statuses
+    );
+
+    List<WorkOrder>
+    findBySlaBreachedTrueAndStatusNotIn(
+            List<WorkOrderStatus> statuses
+    );
+
+    List<WorkOrder>
+    findBySlaDueDateBetweenAndSlaBreachedFalseAndStatusNotIn(
             LocalDateTime start,
             LocalDateTime end,
-            List<WorkOrderStatus> excludedStatuses
+            List<WorkOrderStatus> statuses
     );
 }
