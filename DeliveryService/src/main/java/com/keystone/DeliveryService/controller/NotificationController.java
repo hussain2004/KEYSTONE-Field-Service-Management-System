@@ -24,6 +24,16 @@ public class NotificationController {
         return notificationService.getMyUnreadNotifications();
     }
 
+    @GetMapping("/manager")
+    public List<NotificationResponse> getManagerNotifications() {
+        return notificationService.getManagerNotifications();
+    }
+
+    @GetMapping("/manager/unread")
+    public List<NotificationResponse> getManagerUnreadNotifications() {
+        return notificationService.getManagerUnreadNotifications();
+    }
+
     @PutMapping("/{id}/read")
     public void markAsRead(@PathVariable Long id) {
         notificationService.markAsRead(id);

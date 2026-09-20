@@ -8,61 +8,38 @@ import {
 
 import MyWorkOrderCard from "./MyWorkOrderCard";
 
-import { getWorkOrdersByTechnician } from "../../api/workOrderApi";
+import { getAllWorkOrders } from "../../api/workOrderApi";
 import type { WorkOrder } from "../../types/workOrder";
 
-interface MyWorkOrdersProps {
-  technicianId: number;
-}
-
-function MyWorkOrders({
-  technicianId,
-}: MyWorkOrdersProps) {
-
+function MyWorkOrders() {
   const [loading, setLoading] = useState(true);
-
-  const [workOrders, setWorkOrders] =
-    useState<WorkOrder[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
 
   useEffect(() => {
     loadWorkOrders();
   }, []);
 
   const loadWorkOrders = async () => {
-
     try {
-
       setLoading(true);
 
-      const data =
-  await getWorkOrdersByTechnician(
-    technicianId
-  );
+      const data = await getAllWorkOrders();
 
-setWorkOrders(data);
-
+      setWorkOrders(data);
     } catch (error) {
-
-      console.error(error);
-
+      console.error("Failed to load technician work orders:", error);
+      setWorkOrders([]);
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
   if (loading) {
-
     return <CircularProgress />;
-
   }
 
   return (
-
     <Box>
-
       <Typography
         fontSize={28}
         fontWeight={700}
@@ -72,29 +49,20 @@ setWorkOrders(data);
       </Typography>
 
       {workOrders.length === 0 ? (
-
         <Typography>
           No assigned work orders.
         </Typography>
-
       ) : (
-
         workOrders.map((workOrder) => (
-
           <MyWorkOrderCard
             key={workOrder.id}
             workOrder={workOrder}
             onRefresh={loadWorkOrders}
           />
-
         ))
-
       )}
-
     </Box>
-
   );
-
 }
 
 export default MyWorkOrders;

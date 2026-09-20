@@ -37,6 +37,12 @@ public interface WorkOrderRepository
     );
 
     List<WorkOrder>
+    findBySlaDueDateLessThanEqualAndSlaBreachedFalseAndStatusNotIn(
+            LocalDateTime dateTime,
+            List<WorkOrderStatus> statuses
+    );
+
+    List<WorkOrder>
     findBySlaBreachedTrueAndStatusNotIn(
             List<WorkOrderStatus> statuses
     );

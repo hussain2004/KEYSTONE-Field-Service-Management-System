@@ -8,18 +8,8 @@ import MainLayout from "../../layouts/MainLayout";
 import MyWorkOrders from "./MyWorkOrders";
 
 function TechnicianDashboard() {
-
-  /*
-   * Temporary value.
-   *
-   * Later we will automatically read the logged-in
-   * engineer from the JWT instead of hardcoding it.
-   */
-  const technicianId = 1;
-
   return (
     <MainLayout>
-
       <Typography
         sx={{
           fontSize: 34,
@@ -34,9 +24,7 @@ function TechnicianDashboard() {
         container
         spacing={3}
       >
-
         <Grid size={{ xs: 12, md: 4 }}>
-
           <Paper
             sx={{
               p: 3,
@@ -71,21 +59,13 @@ function TechnicianDashboard() {
             >
               --
             </Typography>
-
           </Paper>
-
         </Grid>
 
         <Grid size={{ xs: 12, md: 8 }}>
-
-          <MyWorkOrders
-            technicianId={technicianId}
-          />
-
+          <MyWorkOrders />
         </Grid>
-
       </Grid>
-
     </MainLayout>
   );
 }

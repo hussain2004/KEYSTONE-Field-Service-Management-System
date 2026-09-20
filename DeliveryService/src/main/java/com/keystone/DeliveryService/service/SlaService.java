@@ -35,28 +35,45 @@ public class SlaService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        List<WorkOrder> breachedOrders =
-                workOrderRepository
-                        .findBySlaDueDateBeforeAndSlaBreachedFalseAndStatusNotIn(
-                                now,
-                                TERMINAL_STATUSES
-                        );
+        List<WorkOrder> allWorkOrders =
+                workOrderRepository.findAll();
 
         int breachedCount = 0;
 
-        for (WorkOrder workOrder : breachedOrders) {
+        for (WorkOrder workOrder : allWorkOrders) {
+
+            if (workOrder.getSlaDueDate() == null) {
+                continue;
+            }
+
+            if (TERMINAL_STATUSES.contains(workOrder.getStatus())) {
+                continue;
+            }
+
+            if (Boolean.TRUE.equals(workOrder.getSlaBreached())) {
+                continue;
+            }
+
+            if (!workOrder.getSlaDueDate().isBefore(now)
+                    && !workOrder.getSlaDueDate().isEqual(now)) {
+                continue;
+            }
 
             workOrder.setSlaBreached(true);
-
             workOrderRepository.save(workOrder);
 
             breachedCount++;
 
-            notifyTechnician(
-                    workOrder,
+            String message =
                     "SLA breached for work order "
                             + workOrder.getWorkOrderCode()
-                            + "."
+                            + ".";
+
+            notifyTechnician(workOrder, message);
+
+            notificationService.createManagerSlaNotification(
+                    workOrder,
+                    message
             );
         }
 
@@ -92,7 +109,6 @@ public class SlaService {
         Technician technician = workOrder.getTechnician();
 
         if (technician != null) {
-
             notificationService.createSlaNotification(
                     workOrder,
                     technician,

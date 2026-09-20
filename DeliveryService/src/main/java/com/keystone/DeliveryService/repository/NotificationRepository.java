@@ -17,4 +17,12 @@ public interface NotificationRepository
     List<Notification> findByTechnician_EmailIgnoreCaseAndReadFalseOrderByCreatedAtDesc(
             String email
     );
+
+    List<Notification> findByUser_EmailIgnoreCaseOrderByCreatedAtDesc(
+            String email
+    );
+
+    List<Notification> findByUser_EmailIgnoreCaseAndReadFalseOrderByCreatedAtDesc(
+            String email
+    );
 }
