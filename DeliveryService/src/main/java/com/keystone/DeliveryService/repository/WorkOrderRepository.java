@@ -22,6 +22,10 @@ public interface WorkOrderRepository
             Long technicianId
     );
 
+    List<WorkOrder> findByCustomerId(
+            Long customerId
+    );
+
     boolean existsBySiteId(
             Long siteId
     );

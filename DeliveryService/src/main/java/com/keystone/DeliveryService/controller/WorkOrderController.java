@@ -37,6 +37,7 @@ public class WorkOrderController {
 
         return workOrderService.getAllWorkOrders();
     }
+
     @GetMapping("/technician/{technicianId}")
     public List<WorkOrderResponse> getWorkOrdersByTechnician(
             @PathVariable Long technicianId) {
@@ -66,7 +67,8 @@ public class WorkOrderController {
 
         return workOrderService.assignTechnician(
                 id,
-                request.getTechnicianId());
+                request.getTechnicianId()
+        );
     }
 
     @PutMapping("/{id}/start")

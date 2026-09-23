@@ -41,39 +41,61 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // =====================================================
-                        // PUBLIC
-                        // =====================================================
-
                         .requestMatchers("/api/auth/**")
                         .permitAll()
 
+                        // CUSTOMER PORTAL
+                        .requestMatchers("/api/customer-portal/**")
+                        .hasRole("CUSTOMER")
 
-                        // =====================================================
-                        // MANAGER + DISPATCHER
-                        // =====================================================
+                        // WORK ORDER - TECHNICIAN OPERATIONS
+                        .requestMatchers(
+                                "/api/work-orders/*/start",
+                                "/api/work-orders/*/hold",
+                                "/api/work-orders/*/resume",
+                                "/api/work-orders/*/complete"
+                        )
+                        .hasAnyRole("MANAGER", "TECHNICIAN")
 
-                        .requestMatchers("/api/customers/**")
+                        // WORK ORDER - MANAGER / DISPATCHER OPERATIONS
+                        .requestMatchers(
+                                "/api/work-orders/*/assign",
+                                "/api/work-orders/*/close"
+                        )
                         .hasAnyRole("MANAGER", "DISPATCHER")
 
-                        .requestMatchers("/api/sites/**")
-                        .hasAnyRole("MANAGER", "DISPATCHER")
-
-                        .requestMatchers("/api/work-orders/**")
+                        // WORK ORDER - READ
+                        .requestMatchers("/api/work-orders/technician/**")
                         .hasAnyRole(
                                 "MANAGER",
                                 "DISPATCHER",
                                 "TECHNICIAN"
                         )
 
+                        .requestMatchers(
+                                "/api/work-orders",
+                                "/api/work-orders/"
+                        )
+                        .hasAnyRole("MANAGER", "DISPATCHER")
+
+                        // WORK ORDER - CREATE / UPDATE / DELETE
+                        .requestMatchers(
+                                "/api/work-orders",
+                                "/api/work-orders/*"
+                        )
+                        .hasAnyRole("MANAGER", "DISPATCHER", "TECHNICIAN")
+
+                        // MANAGER + DISPATCHER
+                        .requestMatchers("/api/customers/**")
+                        .hasAnyRole("MANAGER", "DISPATCHER")
+
+                        .requestMatchers("/api/sites/**")
+                        .hasAnyRole("MANAGER", "DISPATCHER")
+
                         .requestMatchers("/api/dispatch/**")
                         .hasAnyRole("MANAGER", "DISPATCHER")
 
-
-                        // =====================================================
                         // MANAGER ONLY
-                        // =====================================================
-
                         .requestMatchers("/api/users/**")
                         .hasRole("MANAGER")
 
@@ -83,11 +105,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/reports/**")
                         .hasRole("MANAGER")
 
-
-                        // =====================================================
-                        // MANAGER + DISPATCHER + TECHNICIAN
-                        // =====================================================
-
+                        // PARTS
                         .requestMatchers("/api/parts/**")
                         .hasAnyRole(
                                 "MANAGER",
@@ -107,21 +125,12 @@ public class SecurityConfig {
                                 "TECHNICIAN"
                         )
 
-
-                        // =====================================================
                         // DASHBOARD
-                        // =====================================================
-
                         .requestMatchers("/api/dashboard/**")
                         .hasAnyRole(
                                 "MANAGER",
                                 "DISPATCHER"
                         )
-
-
-                        // =====================================================
-                        // ALL OTHER API ENDPOINTS
-                        // =====================================================
 
                         .requestMatchers("/api/**")
                         .authenticated()
@@ -140,12 +149,10 @@ public class SecurityConfig {
         return http.build();
     }
 
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
 
     @Bean
     public AuthenticationManager authenticationManager(
